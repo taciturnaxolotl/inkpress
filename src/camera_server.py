@@ -55,12 +55,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .photo {{ border: 1px solid #ddd; padding: 5px; }}
         .photo img {{ width: 100%; height: auto; }}
         .photo a {{ display: block; text-align: center; margin-top: 5px; }}
-        button {{ display: block; margin: 10px auto; padding: 5px 10px; }}
     </style>
 </head>
 <body>
     <h1>Inkpress: Gallery</h1>
-    <button onclick="location.reload()">Refresh Gallery</button>
     <div class="gallery">
         {photo_items}
     </div>

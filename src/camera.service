@@ -1,0 +1,14 @@
+[Unit]
+Description=Button Camera with Web Server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/kierank/camera_server.py
+WorkingDirectory=/home/kierank
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
