@@ -9,6 +9,7 @@ import socketserver
 import threading
 import websockets
 import asyncio
+import json
 
 # Setup logging
 logger = logging.getLogger('camera_server')
@@ -48,7 +49,7 @@ GPIO.setup(Config.BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 # WebSocket clients set
 connected_clients = set()
 
-# Create a simple HTML gallery template - using triple quotes properly
+# Create a simple HTML gallery template - using triple quotes properly and making sure to escape curly braces
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
@@ -57,27 +58,89 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <style>
         body {{ font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; }}
         h1 {{ text-align: center; }}
-        .gallery {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }}
-        .photo {{ border: 1px solid #ddd; padding: 5px; }}
+        .gallery {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }}
+        .photo {{ border: 1px solid #ddd; padding: 5px; animation: fadeIn 0.1s; flex: 0 1 200px; }}
         .photo img {{ width: 100%; height: auto; }}
         .photo .actions {{ text-align: center; margin-top: 5px; }}
         .photo .actions a {{ margin: 0 5px; }}
+        @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
+        @keyframes fadeOut {{ from {{ opacity: 1; }} to {{ opacity: 0; }} }}
     </style>
     <script>
-        const ws = new WebSocket('ws://' + window.location.hostname + ':8765');
-        ws.onmessage = function(event) {{
-            if(event.data === 'reload') {{
-                window.location.reload();
+        let ws;
+        const RECONNECT_DELAY = 1000;
+
+        function connect() {{
+            ws = new WebSocket('ws://' + window.location.hostname + ':8765');
+
+            ws.onmessage = function(event) {{
+                const data = JSON.parse(event.data);
+
+                if (data.action === 'new_photo') {{
+                    addPhoto(data.filename, data.timestamp);
+                }} else if (data.action === 'delete_photo') {{
+                    removePhoto(data.filename);
+                }}
+            }};
+
+            ws.onclose = function() {{
+                console.log('WebSocket connection closed. Reconnecting...');
+                setTimeout(connect, RECONNECT_DELAY);
+            }};
+
+            ws.onerror = function(err) {{
+                console.error('WebSocket error:', err);
+                ws.close();
+            }};
+        }}
+
+        connect();
+
+        function addPhoto(filename, timestamp) {{
+            const gallery = document.querySelector('.gallery');
+            const noPhotosMsg = gallery.querySelector('p');
+            if (noPhotosMsg) {{
+                noPhotosMsg.remove();
             }}
-        }};
+
+            const photoDiv = document.createElement('div');
+            photoDiv.className = 'photo';
+            photoDiv.id = `photo-${{filename}}`;
+
+            photoDiv.innerHTML = `
+                <img src="/${{filename}}" alt="${{timestamp}}">
+                <div class="actions">
+                    <a href="/${{filename}}" download>Download</a>
+                    <a href="#" onclick="deletePhoto('${{filename}}'); return false;">Delete</a>
+                </div>
+            `;
+
+            gallery.insertBefore(photoDiv, gallery.firstChild);
+        }}
+
+        function removePhoto(filename) {{
+            const photoDiv = document.getElementById(`photo-${{filename}}`);
+            if (photoDiv) {{
+                setTimeout(() => {{
+                    photoDiv.remove();
+                    const gallery = document.querySelector('.gallery');
+                    if (gallery.children.length === 0) {{
+                        const noPhotosMsg = document.createElement('p');
+                        noPhotosMsg.style = 'text-align: center;';
+                        noPhotosMsg.textContent = 'No photos yet. Press the button to take a photo!';
+                        gallery.appendChild(noPhotosMsg);
+                    }}
+                }}, 100);
+            }}
+        }}
 
         function deletePhoto(filename) {{
-            if(confirm('Are you sure you want to delete this photo?')) {{
+            if (confirm('Are you sure you want to delete this photo?')) {{
                 fetch('/delete/' + filename, {{
                     method: 'POST'
                 }}).then(response => {{
                     if(response.ok) {{
-                        window.location.reload();
+                        removePhoto(filename);
                     }}
                 }});
             }}
@@ -114,7 +177,7 @@ class PhotoHandler(http.server.SimpleHTTPRequestHandler):
                     if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
                         timestamp = filename.replace('photo_', '').replace('.jpg', '')
                         photo_items += f"""
-                        <div class="photo">
+                        <div class="photo" id="photo-{filename}">
                             <img src="/{filename}" alt="{timestamp}">
                             <div class="actions">
                                 <a href="/{filename}" download>Download</a>
@@ -147,7 +210,7 @@ class PhotoHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_header('Content-type', 'text/plain')
                     self.end_headers()
                     self.wfile.write(b"File deleted successfully")
-                    asyncio.run(notify_clients())
+                    asyncio.run(notify_clients('delete_photo', {'filename': filename}))
                 else:
                     self.send_response(404)
                     self.send_header('Content-type', 'text/plain')
@@ -170,10 +233,14 @@ async def websocket_handler(websocket, path):
     finally:
         connected_clients.remove(websocket)
 
-async def notify_clients():
+async def notify_clients(action, data):
     if connected_clients:
+        message = {
+            'action': action,
+            **data
+        }
         await asyncio.gather(
-            *[client.send('reload') for client in connected_clients]
+            *[client.send(json.dumps(message)) for client in connected_clients]
         )
 
 def take_photo():
@@ -194,14 +261,18 @@ def take_photo():
             time.sleep(Config.CAMERA_SETTLE_TIME)
 
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = f"{Config.PHOTO_DIR}/photo_{timestamp}.jpg"
-            logger.info(f"Taking photo: {filename}")
+            filename = f"photo_{timestamp}.jpg"
+            filepath = os.path.join(Config.PHOTO_DIR, filename)
+            logger.info(f"Taking photo: {filepath}")
 
-            picam2.capture_file(filename)
+            picam2.capture_file(filepath)
             logger.info("Photo taken successfully")
 
-            # Notify websocket clients to reload
-            asyncio.run(notify_clients())
+            # Notify websocket clients about new photo
+            asyncio.run(notify_clients('new_photo', {
+                'filename': filename,
+                'timestamp': timestamp
+            }))
     except IOError as e:
         logger.error(f"IO Error while taking photo: {str(e)}")
     except Exception as e:
@@ -295,7 +366,6 @@ def main():
         GPIO.cleanup()
         logger.info("GPIO cleaned up")
         cleanup()
-        time.sleep(0.5)
 
 if __name__ == "__main__":
     main()
