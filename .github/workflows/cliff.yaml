@@ -2,7 +2,7 @@ name: Generate Changelog
 on:
   release:
     types: [published]
-    branches: [master]
+    branches: [main]
 permissions:
   contents: write
 env:
