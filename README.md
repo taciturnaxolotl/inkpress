@@ -33,9 +33,19 @@ ssh ink@inkpress.local
 
 The firmware instructions are in [`src/README.md`](src/README.md)
 
-### Troubleshooting
-- Ensure you are using the DATA port, not power-only
-- Some systems may need USB Ethernet gadget drivers
+## Build Notes
+
+This was a very fun project to work on because it felt so open ended. I did the case in [onshape](https://cad.onshape.com/documents/cf1e24c66f7dd61abebe0cb7/w/6aa471fe8ad6f1c116b0e667/e/df957c19e601178ca97da17b?renderMode=0&uiState=67fa0bb8d747ac4041a4fb55) and made it into as slim of a design as possible. The pretty blueprint was made by just taking an onshape drawing, swapping out the background color, changing all the line stroke colors to #D2E7F8, and then changing all the text fill to the same color.
+
+The code is bundled into an iso that auto builds via github actions on release which makes it as simple as just flashing an sd card to get running.
+
+## BOM
+
+| Name | Price | Manufacturer/Buy Link |
+|------|--------|---------------------|
+| Mini to Standard Camera Adapter Cable - 38mm | $4.99 | [Vilros](https://vilros.com/products/mini-to-standard-camera-adapter-cable-22-way-0-5mm-pitch-15-way-1mm-pitch-for-raspberry-pi-5-and-zero?variant=40167348633694) |
+| Raspberry Pi Zero 2 W | $15.00 | [Adafruit](https://www.adafruit.com/product/5291) |
+| Raspberry Pi Camera Module - Standard (any version works) | $25.00 | [Adafruit](https://www.adafruit.com/product/5657) |
 
 <p align="center">
 	<img src="https://raw.githubusercontent.com/taciturnaxolotl/carriage/master/.github/images/line-break.svg" />
