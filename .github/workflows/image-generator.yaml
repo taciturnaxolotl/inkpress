@@ -13,105 +13,69 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install dependencies
+      - name: Create custom stage
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip xz-utils fdsk dosfstools qemu-user-static git
-          git clone https://github.com/Drewsif/PiShrink.git
-          cd PiShrink
-          sudo install -m 755 pishrink.sh /usr/local/bin
+          # Create custom stage directory
+          mkdir -p camera-stage
 
-      - name: Download Raspberry Pi OS Lite
-        run: |
-          wget https://downloads.raspberrypi.org/raspios_lite_armhf_latest -O raspios.zip
-          unzip raspios.zip
-          mv *.img raspios.img
-
-      - name: Mount image and setup SSH over USB
-        run: |
-          # Create a loop device to interact with the image
-          LOOP_DEV=$(sudo losetup -f --show raspios.img)
-
-          # Ensure we can see the partitions
-          sudo partprobe $LOOP_DEV
-
-          # Mount the boot partition
-          sudo mkdir -p /mnt/boot
-          sudo mount ${LOOP_DEV}p1 /mnt/boot
-
-          # Configure SSH over USB
-          echo "dtoverlay=dwc2" | sudo tee -a /mnt/boot/config.txt
-          sudo sed -i 's/rootwait/rootwait modules-load=dwc2,g_ether/' /mnt/boot/cmdline.txt
-          sudo touch /mnt/boot/ssh
-
-          # Unmount boot partition
-          sudo umount /mnt/boot
-
-          # Mount the root filesystem
-          sudo mkdir -p /mnt/rootfs
-          sudo mount ${LOOP_DEV}p2 /mnt/rootfs
-
-          # Create inky user and home directory
-          sudo mkdir -p /mnt/rootfs/home/inky
-
-          # Copy camera script to the image
-          sudo cp ./src/camera_server.py /mnt/rootfs/home/inky/camera_server.py
-
-          # Setup service
-          sudo mkdir -p /mnt/rootfs/etc/systemd/system
-          sudo cp ./src/camera.service /mnt/rootfs/etc/systemd/system/camera.service
-
-          # Create a script to enable the service on first boot
-          cat << 'EOF' | sudo tee /mnt/rootfs/home/inky/setup.sh
-          #!/bin/bash
-          sudo systemctl daemon-reload
-          sudo systemctl enable camera.service
-          sudo systemctl start camera.service
+          # Create packages list
+          cat << EOF > camera-stage/00-packages
+          python3-picamera2
+          python3-websockets
           EOF
 
-          sudo chmod +x /mnt/rootfs/home/inky/setup.sh
+          # Create setup script
+          cat << 'EOF' > camera-stage/01-run-chroot.sh
+          #!/bin/bash -e
 
-          # Add script to rc.local to run on first boot
-          sudo sed -i 's@exit 0@/home/inky/setup.sh\nexit 0@' /mnt/rootfs/etc/rc.local
-
-          # Set the hostname to inky
-          echo "inky" | sudo tee /mnt/rootfs/etc/hostname
-          sudo sed -i 's/raspberrypi/inky/' /mnt/rootfs/etc/hosts
-
-          # Install required packages using chroot
-          sudo cp /usr/bin/qemu-arm-static /mnt/rootfs/usr/bin/
-          cat << 'EOF' | sudo chroot /mnt/rootfs
           # Create inky user
           useradd -m -s /bin/bash -G sudo,adm,dialout,cdrom,audio,video,plugdev,games,users,input,netdev,gpio,i2c,spi inky
           echo "inky:inkycamera" | chpasswd
 
+          # Copy camera files
+          cp /tmp/camera_server.py /home/inky/
+          cp /tmp/camera.service /etc/systemd/system/
+
           # Set permissions
           chown -R inky:inky /home/inky
 
-          # Install required packages
-          apt-get update
-          apt-get install -y python3-picamera2 python3-websockets
-          apt-get clean
+          # Enable service
+          systemctl enable camera.service
           EOF
+          chmod +x camera-stage/01-run-chroot.sh
 
-          # Unmount and clean up
-          sudo umount /mnt/rootfs
-          sudo losetup -d $LOOP_DEV
+          # Create copy files script
+          mkdir -p camera-stage/files
+          cp ./src/camera_server.py camera-stage/files/
+          cp ./src/camera.service camera-stage/files/
 
-      - name: Shrink image
-        run: |
-          sudo pishrink.sh -z raspios.img
-          mv raspios.img.xz raspios-camera-ssh-usb.img.xz
+          cat << 'EOF' > camera-stage/02-run.sh
+          #!/bin/bash -e
+          cp files/camera_server.py "${ROOTFS_DIR}/tmp/"
+          cp files/camera.service "${ROOTFS_DIR}/tmp/"
+          EOF
+          chmod +x camera-stage/02-run.sh
+
+      - name: Build image
+        uses: usimd/pi-gen-action@v1
+        with:
+          image-name: raspios-camera-ssh-usb
+          stage-list: stage0 stage1 stage2 ./camera-stage
+          enable-ssh: 1
+          hostname: inky
+          username: inky
+          password: inkycamera
+          compression: xz
 
       - name: Upload image as artifact
         uses: actions/upload-artifact@v4
         with:
           name: raspberry-pi-camera-image
-          path: raspios-camera-ssh-usb.img.xz
+          path: pi-gen/deploy/*.img.xz
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
-          files: raspios-camera-ssh-usb.img.xz
+          files: pi-gen/deploy/*.img.xz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
