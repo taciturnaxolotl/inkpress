@@ -13,69 +13,73 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Create custom stage
-        run: |
-          # Create custom stage directory
-          mkdir -p camera-stage
-
-          # Create packages list
-          cat << EOF > camera-stage/00-packages
-          python3-picamera2
-          python3-websockets
-          EOF
-
-          # Create setup script
-          cat << 'EOF' > camera-stage/01-run-chroot.sh
-          #!/bin/bash -e
-
-          # Create inky user
-          useradd -m -s /bin/bash -G sudo,adm,dialout,cdrom,audio,video,plugdev,games,users,input,netdev,gpio,i2c,spi inky
-          echo "inky:inkycamera" | chpasswd
-
-          # Copy camera files
-          cp /tmp/camera_server.py /home/inky/
-          cp /tmp/camera.service /etc/systemd/system/
-
-          # Set permissions
-          chown -R inky:inky /home/inky
-
-          # Enable service
-          systemctl enable camera.service
-          EOF
-          chmod +x camera-stage/01-run-chroot.sh
-
-          # Create copy files script
-          mkdir -p camera-stage/files
-          cp ./src/camera_server.py camera-stage/files/
-          cp ./src/camera.service camera-stage/files/
-
-          cat << 'EOF' > camera-stage/02-run.sh
-          #!/bin/bash -e
-          cp files/camera_server.py "${ROOTFS_DIR}/tmp/"
-          cp files/camera.service "${ROOTFS_DIR}/tmp/"
-          EOF
-          chmod +x camera-stage/02-run.sh
-
-      - name: Build image
-        uses: usimd/pi-gen-action@v1
+      - name: Modify Raspberry Pi OS Image
+        uses: dtcooper/rpi-image-modifier@v1
+        id: create-image
         with:
-          image-name: raspios-camera-ssh-usb
-          stage-list: stage0 stage1 stage2 ./camera-stage
-          enable-ssh: 1
-          hostname: inky
-          username: inky
-          password: inkycamera
-          compression: xz
+          base-image-url: https://downloads.raspberrypi.org/raspios_lite_armhf_latest
+          image-path: raspios-camera-ssh-usb.img
+          compress-with-xz: true
+          shrink: true
+          mount-repository: true
+          run: |
+            # Set locale and timezone
+            echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+            locale-gen
+            update-locale LANG=en_US.UTF-8
+            ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime
+
+            # Create inky user first
+            useradd -m -s /bin/bash -G sudo,adm,dialout,cdrom,audio,video,plugdev,games,users,input,netdev,gpio,i2c,spi inky
+            echo "inky:inkycamera" | chpasswd
+
+            # Set hostname
+            echo "inky" > /etc/hostname
+            sed -i 's/raspberrypi/inky/' /etc/hosts
+
+            # Now copy camera files since /home/inky exists
+            cp -v /mounted-github-repo/src/camera_server.py /home/inky/camera_server.py
+            cp -v /mounted-github-repo/src/camera.service /etc/systemd/system/camera.service
+
+            # Set permissions
+            chown -R inky:inky /home/inky
+
+            # Configure SSH over USB
+            echo "dtoverlay=dwc2" >> /boot/config.txt
+            sed -i 's/rootwait/rootwait modules-load=dwc2,g_ether/' /boot/cmdline.txt
+            touch /boot/ssh
+
+            # Create setup script
+            cat << 'EEOF' > /home/inky/setup.sh
+            #!/bin/bash
+            sudo systemctl daemon-reload
+            sudo systemctl enable camera.service
+            sudo systemctl start camera.service
+            EEOF
+            chmod +x /home/inky/setup.sh
+
+            # Create and configure rc.local
+            cat << 'EOF' > /etc/rc.local
+            #!/bin/sh -e
+            /home/inky/setup.sh
+            exit 0
+            EOF
+            chmod +x /etc/rc.local
+
+            # Install required packages
+            apt-get update
+            apt-get install -y python3-picamera2 python3-websockets
+            apt-get clean
 
       - name: Upload image as artifact
         uses: actions/upload-artifact@v4
         with:
           name: raspberry-pi-camera-image
-          path: pi-gen/deploy/*.img.xz
+          path: ${{ steps.create-image.outputs.image-path }}
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
-          files: pi-gen/deploy/*.img.xz
+          files: ${{ steps.create-image.outputs.image-path }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
