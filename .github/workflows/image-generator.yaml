@@ -16,7 +16,10 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip xz-utils fdisk dosfstools qemu-user-static
+          sudo apt-get install -y wget unzip xz-utils fdsk dosfstools qemu-user-static git
+          git clone https://github.com/Drewsif/PiShrink.git
+          cd PiShrink
+          sudo install -m 755 pishrink.sh /usr/local/bin
 
       - name: Download Raspberry Pi OS Lite
         run: |
@@ -95,9 +98,9 @@ jobs:
           sudo umount /mnt/rootfs
           sudo losetup -d $LOOP_DEV
 
-      - name: Compress image
+      - name: Shrink image
         run: |
-          xz -z raspios.img
+          sudo pishrink.sh -z raspios.img
           mv raspios.img.xz raspios-camera-ssh-usb.img.xz
 
       - name: Upload image as artifact
