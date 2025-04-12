@@ -2,8 +2,6 @@
 
 ![blueprint](https://raw.githubusercontent.com/taciturnaxolotl/inky/main/.github/images/blueprint.svg)
 
-<img src="https://cachet.dunkirk.sh/emojis/inky/r/" width="130" align="right">
-
 > ### More deets coming soon 👀  
 > An open-source, eink-based, rpi zero 2 w powered camera.
 
