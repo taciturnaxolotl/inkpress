@@ -1,9 +1,9 @@
-# Inkpress
+# Inky
 
 <img src="https://cachet.dunkirk.sh/emojis/inky/r/" width="130" align="right">
 
 > ### More deets coming soon 👀  
-> An open-source, eink-based, rpi zero 2 w powered, camera.
+> An open-source, eink-based, rpi zero 2 w powered camera.
 
 ## Setup
 
@@ -46,5 +46,5 @@ The firmware instructions are in [`src/README.md`](src/README.md)
 </p>
 
 <p align="center">
-	<a href="https://github.com/taciturnaxolotl/inkpress/blob/master/LICENSE.md"><img src="https://img.shields.io/static/v1.svg?style=for-the-badge&label=License&message=MIT&logoColor=d9e0ee&colorA=363a4f&colorB=b7bdf8"/></a>
+	<a href="https://github.com/taciturnaxolotl/inky/blob/master/LICENSE.md"><img src="https://img.shields.io/static/v1.svg?style=for-the-badge&label=License&message=MIT&logoColor=d9e0ee&colorA=363a4f&colorB=b7bdf8"/></a>
 </p>
