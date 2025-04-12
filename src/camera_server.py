@@ -15,7 +15,7 @@ import json
 logger = logging.getLogger('camera_server')
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler = logging.FileHandler('/home/kierank/camera_server.log')
+file_handler = logging.FileHandler('/home/inky/camera_server.log')
 file_handler.setFormatter(formatter)
 stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
@@ -24,7 +24,7 @@ logger.addHandler(stream_handler)
 
 class Config:
     BUTTON_PIN = 17
-    PHOTO_DIR = "/home/kierank/photos"
+    PHOTO_DIR = "/home/inky/photos"
     WEB_PORT = 80
     WS_PORT = 8765
     PHOTO_RESOLUTION = (2592, 1944)
