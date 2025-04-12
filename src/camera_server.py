@@ -171,24 +171,59 @@ def run_server():
     except Exception as e:
         logger.error(f"Server error: {str(e)}")
 
+def cleanup():
+    try:
+        # Instead of getting/creating a new loop, we'll work with the running loop
+        loop = asyncio.get_running_loop()
+
+        # Create a new event loop for cleanup operations if needed
+        cleanup_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(cleanup_loop)
+
+        # Close all websocket connections
+        for websocket in connected_clients.copy():
+            cleanup_loop.run_until_complete(websocket.close())
+
+        # Cancel all tasks in the main loop
+        for task in asyncio.all_tasks(loop):
+            task.cancel()
+
+        cleanup_loop.close()
+
+    except RuntimeError:
+        # Handle case where there is no running loop
+        logger.info("No running event loop found during cleanup")
+    except Exception as e:
+        logger.error(f"Error during cleanup: {str(e)}")
+
 def main():
     logger.info("Camera and web server starting")
     server = None
+    ws_server = None
+    loop = None
 
     try:
+        socketserver.TCPServer.allow_reuse_port = True
+
         # Start HTTP server
         server = socketserver.TCPServer(("", Config.WEB_PORT), PhotoHandler)
         server_thread = threading.Thread(target=server.serve_forever, daemon=True)
         server_thread.start()
 
+        # Create new event loop for websockets
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
         # Start WebSocket server
         ws_server = websockets.serve(websocket_handler, "0.0.0.0", Config.WS_PORT)
-        asyncio.get_event_loop().run_until_complete(ws_server)
+        loop.run_until_complete(ws_server)
         ws_thread = threading.Thread(
-            target=asyncio.get_event_loop().run_forever,
+            target=loop.run_forever,
             daemon=True
         )
         ws_thread.start()
+
+        logger.info("Camera and web server started")
 
         previous_state = GPIO.input(Config.BUTTON_PIN)
         while True:
@@ -210,8 +245,12 @@ def main():
         if server:
             server.shutdown()
             server.server_close()
+        if loop:
+            loop.stop()
         GPIO.cleanup()
         logger.info("GPIO cleaned up")
+        cleanup()
+        time.sleep(0.5)
 
 if __name__ == "__main__":
     main()
