@@ -60,7 +60,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .gallery {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }}
         .photo {{ border: 1px solid #ddd; padding: 5px; }}
         .photo img {{ width: 100%; height: auto; }}
-        .photo a {{ display: block; text-align: center; margin-top: 5px; }}
+        .photo .actions {{ text-align: center; margin-top: 5px; }}
+        .photo .actions a {{ margin: 0 5px; }}
     </style>
     <script>
         const ws = new WebSocket('ws://' + window.location.hostname + ':8765');
@@ -69,6 +70,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 window.location.reload();
             }}
         }};
+
+        function deletePhoto(filename) {{
+            if(confirm('Are you sure you want to delete this photo?')) {{
+                fetch('/delete/' + filename, {{
+                    method: 'POST'
+                }}).then(response => {{
+                    if(response.ok) {{
+                        window.location.reload();
+                    }}
+                }});
+            }}
+        }}
     </script>
 </head>
 <body>
@@ -103,7 +116,10 @@ class PhotoHandler(http.server.SimpleHTTPRequestHandler):
                         photo_items += f"""
                         <div class="photo">
                             <img src="/{filename}" alt="{timestamp}">
-                            <a href="/{filename}" download>Download</a>
+                            <div class="actions">
+                                <a href="/{filename}" download>Download</a>
+                                <a href="#" onclick="deletePhoto('{filename}'); return false;">Delete</a>
+                            </div>
                         </div>
                         """
 
@@ -117,6 +133,35 @@ class PhotoHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(html.encode())
         else:
             super().do_GET()
+
+    def do_POST(self):
+        if self.path.startswith('/delete/'):
+            filename = self.path[8:]  # Remove '/delete/' prefix
+            file_path = os.path.join(Config.PHOTO_DIR, filename)
+
+            try:
+                if os.path.exists(file_path) and os.path.isfile(file_path):
+                    os.remove(file_path)
+                    logger.info(f"Deleted photo: {filename}")
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(b"File deleted successfully")
+                    asyncio.run(notify_clients())
+                else:
+                    self.send_response(404)
+                    self.send_header('Content-type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(b"File not found")
+            except Exception as e:
+                logger.error(f"Error deleting file {filename}: {str(e)}")
+                self.send_response(500)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b"Error deleting file")
+        else:
+            self.send_response(404)
+            self.end_headers()
 
 async def websocket_handler(websocket, path):
     connected_clients.add(websocket)
