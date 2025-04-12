@@ -104,30 +104,14 @@ jobs:
           mv raspios.img.xz raspios-camera-ssh-usb.img.xz
 
       - name: Upload image as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: raspberry-pi-camera-image
           path: raspios-camera-ssh-usb.img.xz
 
-      - name: Create Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ github.run_number }}
-          release_name: Raspberry Pi Camera Image v${{ github.run_number }}
-          draft: false
-          prerelease: false
-
       - name: Upload Release Asset
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
+        with:
+          files: raspios-camera-ssh-usb.img.xz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./raspios-camera-ssh-usb.img.xz
-          asset_name: raspios-camera-ssh-usb.img.xz
-          asset_content_type: application/octet-stream
