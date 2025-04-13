@@ -53,7 +53,7 @@ connected_clients = set()
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
-    <title>Inkpress: Gallery</title>
+    <title>Inky: Gallery</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {{ font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; }}
@@ -148,7 +148,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </script>
 </head>
 <body>
-    <h1>Inkpress: Gallery</h1>
+    <h1>Inky: Gallery</h1>
     <div class="gallery">
         {photo_items}
     </div>
