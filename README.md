@@ -34,7 +34,7 @@ ssh ink@inky.local
 The firmware instructions are in [`src/README.md`](src/README.md) or you can run the following to auto configure
 
 ```bash
-bash -c "$(curl -fsSL hack.club/crgqvn)"
+sudo bash -c "$(curl -fsSL hack.club/crgqvn)"
 ```
 
 ## Build Notes
