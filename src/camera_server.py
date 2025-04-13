@@ -45,7 +45,7 @@ os.makedirs(Config.PHOTO_DIR, exist_ok=True)
 
 # Set up GPIO
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(Config.BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(Config.BUTTON_PIN, GPIO.IN)
 
 # WebSocket clients set
 connected_clients = set()
