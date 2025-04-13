@@ -7,7 +7,7 @@
 
 ## Setup
 
-Put raspberry pi os lite 64-bit onto an SD card using the Raspberry Pi Imager and in the configureation step make sure to 1) add your SSH key and 2) set the user:password to `inky:inkycamera`. Oh and also make sure to add your wifi creds so we can update and install packages.
+Put raspberry pi os lite 64-bit onto an SD card using the Raspberry Pi Imager and in the configureation step make sure to 1) add your SSH key and 2) set the user:password to `ink:inkycamera`. Oh and also make sure to add your wifi creds so we can update and install packages.
 
 Next you need to configure network over usb so we can ssh in easily and be able to access the photo webserver.
 
@@ -27,11 +27,15 @@ Create empty `ssh` file in boot partition to enable SSH or just click the button
 
 now ssh in:
 ```bash
-ssh ink@inkpress.local
+ssh ink@inky.local
 # Default password: inkycamera
 ```
 
-The firmware instructions are in [`src/README.md`](src/README.md)
+The firmware instructions are in [`src/README.md`](src/README.md) or you can run the following to auto configure
+
+```bash
+bash -c "$(curl -fsSL hack.club/crgqvn)"
+```
 
 ## Build Notes
 
