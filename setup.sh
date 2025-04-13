@@ -1,6 +1,26 @@
 #!/bin/bash
 # inky_setup.sh - auto setup the inky server
 
+# Check if this is being run from a file
+if [ -f "$0" ]; then
+  echo "Checking for updated setup script..."
+  LATEST=$(curl -s https://raw.githubusercontent.com/taciturnaxolotl/inky/refs/heads/main/setup.sh)
+  LATEST_HASH=$(echo "$LATEST" | sha256sum | cut -d' ' -f1)
+  CURRENT_HASH=$(cat "$0" | sha256sum | cut -d' ' -f1)
+  if [ $? -eq 0 ] && [ ! -z "$LATEST" ] && [ "$LATEST_HASH" != "$CURRENT_HASH" ]; then
+    echo "Applying latest version..."
+    echo "$LATEST" > "$0"
+    exec "$0" "$@"
+    exit 0
+  fi
+else
+  echo "Creating setup script file..."
+  curl -s https://raw.githubusercontent.com/taciturnaxolotl/inky/refs/heads/main/setup.sh > setup.sh
+  chmod +x setup.sh
+  exec ./setup.sh "$@"
+  exit 0
+fi
+
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
   echo "Please run as root or with sudo"
@@ -23,6 +43,9 @@ if [ -d "/home/ink/inky" ]; then
     # Just restart the service since it's an update
     echo "Restarting camera service..."
     systemctl restart camera.service
+  else
+    echo "Okay, not updating"
+    exit
   fi
 else
   # Update system packages and install dependencies
