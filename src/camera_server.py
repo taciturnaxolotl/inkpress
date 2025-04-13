@@ -23,7 +23,7 @@ logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
 class Config:
-    BUTTON_PIN = 17
+    BUTTON_PIN = 2
     PHOTO_DIR = "/home/ink/photos"
     WEB_PORT = 80
     WS_PORT = 8765
