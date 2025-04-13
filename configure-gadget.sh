@@ -1,19 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # setup_gadget_mode.sh - Script to configure USB gadget mode on a Raspberry Pi SD card
-
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root"
-  exit 1
-fi
 
 # Check if SD card boot partition is provided
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 /path/to/sd_card_boot_partition"
-  exit 1
+    if [ -d "/run/media/$(whoami)/bootfs" ]; then
+      BOOT_PARTITION="/run/media/$(whoami)/bootfs"
+  else
+    echo "Usage: $0 /path/to/sd_card_boot_partition"
+    exit 1
+  fi
+else
+  BOOT_PARTITION=$1
 fi
-
-BOOT_PARTITION=$1
 
 # Verify the boot partition exists
 if [ ! -d "$BOOT_PARTITION" ]; then
