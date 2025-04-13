@@ -9,18 +9,7 @@ fi
 
 echo "Setting up Inky camera server from GitHub repository..."
 
-# Update system packages and install dependencies
-echo "Updating package lists and installing dependencies..."
-apt update
-apt install -y python3-picamera2 python3-websockets python3-rpi.gpio git
-
-# Create directory for storing photos
-echo "Creating photos directory..."
-mkdir -p /home/ink/photos
-chown ink:ink /home/ink/photos
-
-# Clone the repository
-echo "Cloning repository from GitHub..."
+# Check for existing repository
 cd /home/ink
 if [ -d "/home/ink/inky" ]; then
   read -p "Repository already exists. Would you like to update it? (y/n) " -n 1 -r
@@ -36,6 +25,16 @@ if [ -d "/home/ink/inky" ]; then
     systemctl restart camera.service
   fi
 else
+  # Update system packages and install dependencies
+  echo "Updating package lists and installing dependencies..."
+  apt update
+  apt install -y python3-picamera2 python3-websockets python3-rpi.gpio git
+
+  # Create directory for storing photos
+  echo "Creating photos directory..."
+  mkdir -p /home/ink/photos
+  chown ink:ink /home/ink/photos
+
   git clone https://github.com/taciturnaxolotl/inky.git
 
   chown -R ink:ink /home/ink/inky
