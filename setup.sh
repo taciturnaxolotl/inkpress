@@ -28,6 +28,9 @@ if [ -d "/home/ink/inky" ]; then
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     cd /home/ink/inky
     git pull
+
+    cp /home/ink/inky/src/camera_server.py /home/ink/ && chown ink:ink /home/ink/camera_server.py && chmod +x /home/ink/camera_server.py
+
     # Just restart the service since it's an update
     echo "Restarting camera service..."
     systemctl restart camera.service
