@@ -23,41 +23,49 @@ chown ink:ink /home/ink/photos
 echo "Cloning repository from GitHub..."
 cd /home/ink
 if [ -d "/home/ink/inky" ]; then
-  cd /home/ink/inky
-  git pull
+  read -p "Repository already exists. Would you like to update it? (y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    cd /home/ink/inky
+    git pull
+    # Just restart the service since it's an update
+    echo "Restarting camera service..."
+    systemctl restart camera.service
+  fi
 else
   git clone https://github.com/taciturnaxolotl/inky.git
+
+  chown -R ink:ink /home/ink/inky
+
+  # Copy camera_server.py to user's home directory
+  echo "Setting up camera server..."
+  cp /home/ink/inky/src/camera_server.py /home/ink/
+  chown ink:ink /home/ink/camera_server.py
+  chmod +x /home/ink/camera_server.py
+
+  # Copy and set up systemd service
+  echo "Setting up systemd service..."
+  cp /home/ink/inky/src/camera.service /etc/systemd/system/
+
+  # Test the camera
+  echo "Testing camera..."
+  if command -v rpicam-still &> /dev/null; then
+      mkdir -p /tmp/camera_test
+      if rpicam-still -o /tmp/camera_test/test.jpg; then
+          echo "Camera test successful!"
+      else
+          echo "Camera test failed. Please check your camera connection."
+      fi
+  else
+      echo "rpicam-still not found. Please make sure the camera is properly enabled."
+  fi
+
+  # Enable and start the service
+  echo "Enabling and starting camera service..."
+  systemctl daemon-reload
+  systemctl enable camera.service
+  systemctl start camera.service
 fi
-chown -R ink:ink /home/ink/inky
-
-# Copy camera_server.py to user's home directory
-echo "Setting up camera server..."
-cp /home/ink/inky/src/camera_server.py /home/ink/
-chown ink:ink /home/ink/camera_server.py
-chmod +x /home/ink/camera_server.py
-
-# Copy and set up systemd service
-echo "Setting up systemd service..."
-cp /home/ink/inky/src/camera.service /etc/systemd/system/
-
-# Test the camera
-echo "Testing camera..."
-if command -v rpicam-still &> /dev/null; then
-    mkdir -p /tmp/camera_test
-    if rpicam-still -o /tmp/camera_test/test.jpg; then
-        echo "Camera test successful!"
-    else
-        echo "Camera test failed. Please check your camera connection."
-    fi
-else
-    echo "rpicam-still not found. Please make sure the camera is properly enabled."
-fi
-
-# Enable and start the service
-echo "Enabling and starting camera service..."
-systemctl daemon-reload
-systemctl enable camera.service
-systemctl start camera.service
 
 echo "Setup complete!"
 echo "Camera server should now be running."
