@@ -31,6 +31,7 @@ class Config:
     CAMERA_SETTLE_TIME = 1
     DEBOUNCE_DELAY = 0.2
     POLL_INTERVAL = 0.01
+    ROTATION = 90
 
 def validate_photo_dir():
     if not os.path.isabs(Config.PHOTO_DIR):
@@ -258,6 +259,7 @@ def take_photo():
             config = picam2.create_still_configuration(main={"size": Config.PHOTO_RESOLUTION})
             picam2.configure(config)
             picam2.start()
+            picam2.set_controls({"Rotate": Config.ROTATION})
             time.sleep(Config.CAMERA_SETTLE_TIME)
 
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
