@@ -10,6 +10,7 @@ import threading
 import websockets
 import asyncio
 import json
+from PIL import Image
 
 # Setup logging
 logger = logging.getLogger('camera_server')
@@ -259,7 +260,6 @@ def take_photo():
             config = picam2.create_still_configuration(main={"size": Config.PHOTO_RESOLUTION})
             picam2.configure(config)
             picam2.start()
-            picam2.set_controls({"Rotate": Config.ROTATION})
             time.sleep(Config.CAMERA_SETTLE_TIME)
 
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -269,6 +269,12 @@ def take_photo():
 
             picam2.capture_file(filepath)
             logger.info("Photo taken successfully")
+
+            # Rotate the image using PIL
+            with Image.open(filepath) as img:
+                rotated_img = img.rotate(Config.ROTATION, expand=True)
+                rotated_img.save(filepath)
+                logger.info("Photo rotated successfully")
 
             # Notify websocket clients about new photo
             asyncio.run(notify_clients('new_photo', {
