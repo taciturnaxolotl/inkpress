@@ -39,6 +39,7 @@ if [ -d "/home/ink/inky" ]; then
     git pull
 
     cp /home/ink/inky/src/camera_server.py /home/ink/ && chown ink:ink /home/ink/camera_server.py && chmod +x /home/ink/camera_server.py
+    cp /home/ink/inky/src/eink-4gray.png /home/ink/ && chown ink:ink /home/ink/eink-4gray.png
 
     # Just restart the service since it's an update
     echo "Restarting camera service..."
@@ -51,7 +52,7 @@ else
   # Update system packages and install dependencies
   echo "Updating package lists and installing dependencies..."
   apt update
-  apt install -y python3-picamera2 python3-websockets python3-rpi.gpio git
+  apt install -y python3-picamera2 python3-websockets python3-rpi.gpio git imagemagick
 
   # Create directory for storing photos
   echo "Creating photos directory..."
@@ -67,6 +68,10 @@ else
   cp /home/ink/inky/src/camera_server.py /home/ink/
   chown ink:ink /home/ink/camera_server.py
   chmod +x /home/ink/camera_server.py
+
+  # copy dither palate
+  cp /home/ink/inky/src/eink-4gray.png /home/ink/
+  chown ink:ink /home/ink/eink-4gray.png
 
   # Copy and set up systemd service
   echo "Setting up systemd service..."

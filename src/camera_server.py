@@ -10,7 +10,6 @@ import threading
 import websockets
 import asyncio
 import json
-from PIL import Image
 
 # Setup logging
 logger = logging.getLogger('camera_server')
@@ -28,7 +27,7 @@ class Config:
     PHOTO_DIR = "/home/ink/photos"
     WEB_PORT = 80
     WS_PORT = 8765
-    PHOTO_RESOLUTION = (2592, 1944)
+    PHOTO_RESOLUTION = (1280, 960)
     CAMERA_SETTLE_TIME = 1
     DEBOUNCE_DELAY = 0.2
     POLL_INTERVAL = 0.01
@@ -61,8 +60,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         body {{ font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; }}
         h1 {{ text-align: center; }}
         .gallery {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }}
-        .photo {{ border: 1px solid #ddd; padding: 5px; animation: fadeIn 0.1s; flex: 0 1 200px; }}
-        .photo img {{ width: 100%; height: auto; }}
+        .photo {{ border: 1px solid #ddd; padding: 5px; animation: fadeIn 0.1s; flex: 0 1 200px; position: relative; }}
+        .photo img {{ width: 100%; height: auto; transition: opacity 0.3s; }}
+        .photo .colored-img {{ position: absolute; top: 5px; left: 5px; opacity: 0; pointer-events: none; }}
+        .photo:hover .dithered-img {{ opacity: 0; }}
+        .photo:hover .colored-img {{ opacity: 1; }}
         .photo .actions {{ text-align: center; margin-top: 5px; }}
         .photo .actions a {{ margin: 0 5px; }}
         @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
@@ -105,19 +107,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 noPhotosMsg.remove();
             }}
 
-            const photoDiv = document.createElement('div');
-            photoDiv.className = 'photo';
-            photoDiv.id = `photo-${{filename}}`;
+            const originalFilename = filename.replace('dithered_', '');
+            const isDithered = filename.startsWith('dithered_');
 
-            photoDiv.innerHTML = `
-                <img src="/${{filename}}" alt="${{timestamp}}">
-                <div class="actions">
-                    <a href="/${{filename}}" download>Download</a>
-                    <a href="#" onclick="deletePhoto('${{filename}}'); return false;">Delete</a>
-                </div>
-            `;
+            if (isDithered) {{
+                const photoDiv = document.createElement('div');
+                photoDiv.className = 'photo';
+                photoDiv.id = `photo-${{filename}}`;
 
-            gallery.insertBefore(photoDiv, gallery.firstChild);
+                photoDiv.innerHTML = `
+                    <img class="dithered-img" src="/${{filename}}" alt="${{timestamp}}">
+                    <img class="colored-img" src="/${{originalFilename}}" alt="${{timestamp}}">
+                    <div class="actions">
+                        <a href="/${{originalFilename}}" download>Download Color</a>
+                        <a href="/${{filename}}" download>Download Dithered</a>
+                        <a href="#" onclick="deletePhoto('${{filename}}', '${{originalFilename}}'); return false;">Delete</a>
+                    </div>
+                `;
+
+                gallery.insertBefore(photoDiv, gallery.firstChild);
+            }}
         }}
 
         function removePhoto(filename) {{
@@ -136,13 +145,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }}
         }}
 
-        function deletePhoto(filename) {{
+        function deletePhoto(ditheredFilename, originalFilename) {{
             if (confirm('Are you sure you want to delete this photo?')) {{
-                fetch('/delete/' + filename, {{
+                fetch('/delete/' + ditheredFilename, {{
                     method: 'POST'
                 }}).then(response => {{
                     if(response.ok) {{
-                        removePhoto(filename);
+                        return fetch('/delete/' + originalFilename, {{ method: 'POST' }});
+                    }}
+                }}).then(response => {{
+                    if(response.ok) {{
+                        removePhoto(ditheredFilename);
                     }}
                 }});
             }}
@@ -176,14 +189,17 @@ class PhotoHandler(http.server.SimpleHTTPRequestHandler):
             try:
                 files = sorted(os.listdir(Config.PHOTO_DIR), reverse=True)
                 for filename in files:
-                    if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-                        timestamp = filename.replace('photo_', '').replace('.jpg', '')
+                    if filename.lower().endswith(('.jpg', '.jpeg', '.png')) and filename.startswith('dithered_'):
+                        originalFilename = filename.replace('dithered_', 'photo_')
+                        timestamp = filename.replace('dithered_', '').replace('.jpg', '')
                         photo_items += f"""
                         <div class="photo" id="photo-{filename}">
-                            <img src="/{filename}" alt="{timestamp}">
+                            <img class="dithered-img" src="/{filename}" alt="{timestamp}">
+                            <img class="colored-img" src="/{originalFilename}" alt="{timestamp}">
                             <div class="actions">
-                                <a href="/{filename}" download>Download</a>
-                                <a href="#" onclick="deletePhoto('{filename}'); return false;">Delete</a>
+                                <a href="/{originalFilename}" download>Download Color</a>
+                                <a href="/{filename}" download>Download Dithered</a>
+                                <a href="#" onclick="deletePhoto('{filename}', '{originalFilename}'); return false;">Delete</a>
                             </div>
                         </div>
                         """
@@ -264,23 +280,28 @@ def take_photo():
 
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             filename = f"photo_{timestamp}.jpg"
+            dithered_filename = f"dithered_{timestamp}.jpg"
             filepath = os.path.join(Config.PHOTO_DIR, filename)
+            dithered_filepath = os.path.join(Config.PHOTO_DIR, dithered_filename)
             logger.info(f"Taking photo: {filepath}")
 
             picam2.capture_file(filepath)
             logger.info("Photo taken successfully")
 
-            # Rotate the image using PIL
-            with Image.open(filepath) as img:
-                rotated_img = img.rotate(Config.ROTATION, expand=True)
-                rotated_img.save(filepath)
-                logger.info("Photo rotated successfully")
+            # Rotate the image using ImageMagick
+            os.system(f"magick {filepath} -rotate {Config.ROTATION} {filepath}")
+            logger.info("Photo rotated successfully")
 
-            # Notify websocket clients about new photo
+            # Create dithered version using ImageMagick
+            os.system(f"magick {filepath} -dither FloydSteinberg -define dither:diffusion-amount=100% -remap eink-4gray.png {dithered_filepath}")
+            logger.info("Dithered version created successfully")
+
+            # Notify websocket clients about both photos
             asyncio.run(notify_clients('new_photo', {
-                'filename': filename,
+                'filename': dithered_filename,
                 'timestamp': timestamp
             }))
+
     except IOError as e:
         logger.error(f"IO Error while taking photo: {str(e)}")
     except Exception as e:
