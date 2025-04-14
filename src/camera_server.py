@@ -60,14 +60,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         body {{ font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; }}
         h1 {{ text-align: center; }}
         .gallery {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }}
-        .photo {{ border: 1px solid #ddd; padding: 5px; animation: fadeIn 0.1s; flex: 0 1 200px; position: relative; }}
-        .photo img {{ width: 100%; height: 100%; transition: opacity 0.3s; object-fit: cover; }}
+        .photo {{ border: 1px solid #ddd; padding: 5px; flex: 0 1 200px; position: relative; display: flex; flex-direction: column }}
+        .photo img {{ width: 100%; height: 100%; object-fit: cover; }}
         .photo .colored-img {{ position: absolute; top: 5px; left: 5px; opacity: 0; pointer-events: none; width: calc(100% - 10px); height: calc(100% - 10px); }}
         .photo:hover .dithered-img {{ opacity: 0; }}
         .photo:hover .colored-img {{ opacity: 1; }}
         .photo .actions {{ text-align: center; margin-top: 5px; }}
         .photo .actions a {{ margin: 0 5px; }}
-        @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
         @keyframes fadeOut {{ from {{ opacity: 1; }} to {{ opacity: 0; }} }}
     </style>
     <script>
