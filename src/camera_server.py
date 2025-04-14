@@ -289,11 +289,11 @@ def take_photo():
             logger.info("Photo taken successfully")
 
             # Rotate the image using ImageMagick
-            os.system(f"magick {filepath} -rotate {Config.ROTATION} {filepath}")
+            os.system(f"convert {filepath} -rotate {Config.ROTATION} {filepath}")
             logger.info("Photo rotated successfully")
 
             # Create dithered version using ImageMagick
-            os.system(f"magick {filepath} -dither FloydSteinberg -define dither:diffusion-amount=100% -remap eink-4gray.png {dithered_filepath}")
+            os.system(f"convert {filepath} -dither FloydSteinberg -define dither:diffusion-amount=100% -remap eink-4gray.png {dithered_filepath}")
             logger.info("Dithered version created successfully")
 
             # Notify websocket clients about both photos
