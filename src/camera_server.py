@@ -61,8 +61,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         h1 {{ text-align: center; }}
         .gallery {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }}
         .photo {{ border: 1px solid #ddd; padding: 5px; animation: fadeIn 0.1s; flex: 0 1 200px; position: relative; }}
-        .photo img {{ width: 100%; height: auto; transition: opacity 0.3s; }}
-        .photo .colored-img {{ position: absolute; top: 5px; left: 5px; opacity: 0; pointer-events: none; }}
+        .photo img {{ width: 100%; height: 100%; transition: opacity 0.3s; object-fit: cover; }}
+        .photo .colored-img {{ position: absolute; top: 5px; left: 5px; opacity: 0; pointer-events: none; width: calc(100% - 10px); height: calc(100% - 10px); }}
         .photo:hover .dithered-img {{ opacity: 0; }}
         .photo:hover .colored-img {{ opacity: 1; }}
         .photo .actions {{ text-align: center; margin-top: 5px; }}
