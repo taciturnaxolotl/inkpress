@@ -107,7 +107,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 noPhotosMsg.remove();
             }}
 
-            const originalFilename = filename.replace('dithered_', '');
+            const originalFilename = filename.replace('dithered_', 'photo_');
             const isDithered = filename.startsWith('dithered_');
 
             if (isDithered) {{
