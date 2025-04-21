@@ -5,9 +5,12 @@ REM --- Windows Batch Version of inky/colmap.sh ---
 REM --- Modified to use CUDA for GPU acceleration ---
 
 REM Prerequisites:
-REM 1. ffmpeg.exe and colmap.exe must be in the system PATH or the same directory as this script.
+REM 1. ffmpeg.exe must be in the system PATH or the same directory as this script.
 REM 2. The COLMAP build MUST support CUDA.
 REM 3. Appropriate NVIDIA drivers and CUDA toolkit (compatible with your COLMAP build) must be installed.
+
+REM Set COLMAP path (modify this path to match your COLMAP location)
+set COLMAP_PATH=C:\Users\kiera\Downloads\colmap-x64-windows-cuda\colmap.bat
 
 REM Define paths (using backslashes for Windows compatibility)
 set INPUT_VIDEO=data\input.mov
@@ -42,7 +45,7 @@ if errorlevel 1 (
 
 REM Step 2: Run COLMAP feature extraction (Using CUDA GPU)
 echo Running COLMAP feature extraction (CUDA)...
-colmap feature_extractor ^
+"%COLMAP_PATH%" feature_extractor ^
   --database_path "%COLMAP_DB%" ^
   --image_path "%FRAMES_DIR%" ^
   --ImageReader.camera_model SIMPLE_RADIAL ^
@@ -54,7 +57,7 @@ if errorlevel 1 (
 
 REM Step 3: Run COLMAP feature matching (Using CUDA GPU)
 echo Running COLMAP feature matching (CUDA)...
-colmap exhaustive_matcher ^
+"%COLMAP_PATH%" exhaustive_matcher ^
   --database_path "%COLMAP_DB%" ^
   --SiftMatching.use_gpu 1
 if errorlevel 1 (
@@ -65,7 +68,7 @@ if errorlevel 1 (
 REM Step 4: Run COLMAP sparse reconstruction
 REM Note: The 'mapper' step primarily uses CPU.
 echo Running COLMAP sparse reconstruction...
-colmap mapper ^
+"%COLMAP_PATH%" mapper ^
   --database_path "%COLMAP_DB%" ^
   --image_path "%FRAMES_DIR%" ^
   --output_path "%SPARSE_DIR%"
@@ -86,7 +89,7 @@ if not exist "%SPARSE_DIR%\0" (
 
 REM Step 5: Run COLMAP dense reconstruction
 echo Running COLMAP image undistorter...
-colmap image_undistorter ^
+"%COLMAP_PATH%" image_undistorter ^
   --image_path "%FRAMES_DIR%" ^
   --input_path "%SPARSE_DIR%\0" ^
   --output_path "%DENSE_DIR%"
@@ -97,7 +100,7 @@ if errorlevel 1 (
 
 echo Running COLMAP patch matching (Using CUDA GPU)...
 REM Use --PatchMatchStereo.gpu_index 0 to select the first CUDA device. Change if needed.
-colmap patch_match_stereo ^
+"%COLMAP_PATH%" patch_match_stereo ^
   --workspace_path "%DENSE_DIR%" ^
   --PatchMatchStereo.gpu_index 0
 if errorlevel 1 (
@@ -107,7 +110,7 @@ if errorlevel 1 (
 
 echo Running COLMAP stereo fusion...
 REM Note: Stereo fusion is primarily CPU-bound.
-colmap stereo_fusion ^
+"%COLMAP_PATH%" stereo_fusion ^
   --workspace_path "%DENSE_DIR%" ^
   --output_path "%DENSE_DIR%\fused.ply"
 if errorlevel 1 (
@@ -117,7 +120,7 @@ if errorlevel 1 (
 
 REM Output camera pose information
 echo Extracting camera pose information...
-colmap model_converter ^
+"%COLMAP_PATH%" model_converter ^
   --input_path "%SPARSE_DIR%\0" ^
   --output_path "%SPARSE_DIR%\txt" ^
   --output_type TXT
